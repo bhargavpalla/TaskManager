@@ -143,7 +143,7 @@ presentation → domain → data
 ```
 ./gradlew testDebugUnitTestCoverage
 ```
-Test Coverage achieved - 92%
+Test Coverage achieved - 86%
 
 
                                                   ---Wrap---
