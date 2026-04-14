@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -71,87 +73,185 @@ fun TaskListScreen(
     onTrashClick: () -> Unit
 ) {
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(title = { Text("My Tasks") })
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onCreateClick) {
-                Icon(Icons.Default.Add, contentDescription = "Create task")
-            }
-        },
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                TextButton(onClick = {}) { Text("Tasks") }
-                TextButton(onClick = onTrashClick) { Text("Trash") }
-            }
-        }
+        topBar = { TaskListTopBar() },
+        floatingActionButton = { TaskListFab(onCreateClick = onCreateClick) },
+        bottomBar = { TaskListBottomBar(onTrashClick = onTrashClick) }
     ) { innerPadding ->
-        Column(
+        TaskListMainColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-        ) {
-            OutlinedTextField(
-                value = uiModel.query,
-                onValueChange = onSearchChanged,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search tasks...") },
-                singleLine = true
+                .padding(horizontal = 16.dp),
+            query = uiModel.query,
+            selectedFilter = uiModel.selectedFilter,
+            state = uiModel.state,
+            todayTasks = uiModel.todayTasks,
+            thisWeekTasks = uiModel.thisWeekTasks,
+            laterTasks = uiModel.laterTasks,
+            overdueTasks = uiModel.overdueTasks,
+            onSearchChanged = onSearchChanged,
+            onFilterSelected = onFilterSelected,
+            onTaskClick = onTaskClick
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TaskListTopBar() {
+    CenterAlignedTopAppBar(title = { Text("My Tasks") })
+}
+
+@Composable
+private fun TaskListFab(onCreateClick: () -> Unit) {
+    FloatingActionButton(onClick = onCreateClick) {
+        Icon(Icons.Default.Add, contentDescription = "Create task")
+    }
+}
+
+@Composable
+private fun TaskListBottomBar(onTrashClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        TextButton(onClick = {}) { Text("Tasks") }
+        TextButton(onClick = onTrashClick) { Text("Trash") }
+    }
+}
+
+@Composable
+private fun TaskListMainColumn(
+    modifier: Modifier = Modifier,
+    query: String,
+    selectedFilter: TaskFilter,
+    state: UiState<List<Task>>,
+    todayTasks: List<Task>,
+    thisWeekTasks: List<Task>,
+    laterTasks: List<Task>,
+    overdueTasks: List<Task>,
+    onSearchChanged: (String) -> Unit,
+    onFilterSelected: (TaskFilter) -> Unit,
+    onTaskClick: (Int) -> Unit
+) {
+    Column(modifier = modifier) {
+        TaskSearchBar(query = query, onSearchChanged = onSearchChanged)
+        Spacer(modifier = Modifier.height(12.dp))
+        TaskListFilterChips(
+            selectedFilter = selectedFilter,
+            onFilterSelected = onFilterSelected
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        TaskListStateBody(
+            state = state,
+            todayTasks = todayTasks,
+            thisWeekTasks = thisWeekTasks,
+            laterTasks = laterTasks,
+            overdueTasks = overdueTasks,
+            onTaskClick = onTaskClick
+        )
+    }
+}
+
+@Composable
+private fun TaskSearchBar(
+    query: String,
+    onSearchChanged: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onSearchChanged,
+        modifier = modifier.fillMaxWidth(),
+        placeholder = { Text("Search tasks...") },
+        singleLine = true
+    )
+}
+
+@Composable
+private fun TaskListStateBody(
+    state: UiState<List<Task>>,
+    todayTasks: List<Task>,
+    thisWeekTasks: List<Task>,
+    laterTasks: List<Task>,
+    overdueTasks: List<Task>,
+    onTaskClick: (Int) -> Unit
+) {
+    when (state) {
+        UiState.Loading -> Text("Loading...", modifier = Modifier.alpha(0.7f))
+        is UiState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error)
+        UiState.Empty -> Text("No tasks found.")
+        is UiState.Success -> {
+            TaskListLazySections(
+                todayTasks = todayTasks,
+                thisWeekTasks = thisWeekTasks,
+                laterTasks = laterTasks,
+                overdueTasks = overdueTasks,
+                onTaskClick = onTaskClick
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            FilterChips(
-                selectedFilter = uiModel.selectedFilter,
-                onFilterSelected = onFilterSelected
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            when (val state = uiModel.state) {
-                UiState.Loading -> Text("Loading...", modifier = Modifier.alpha(0.7f))
-                is UiState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error)
-                UiState.Empty -> Text("No tasks found.")
-                is UiState.Success -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(bottom = 88.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        if (uiModel.todayTasks.isNotEmpty()) {
-                            item { Text("Today", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                            items(uiModel.todayTasks, key = { "today_$it.id}" }) { task ->
-                                TaskItem(task = task, onClick = { onTaskClick(task.id) })
-                            }
-                        }
-                        if (uiModel.thisWeekTasks.isNotEmpty()) {
-                            item { Text("This Week", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                            items(uiModel.thisWeekTasks, key = { "thisweek_${it.id}" }) { task ->
-                                TaskItem(task = task, onClick = { onTaskClick(task.id) })
-                            }
-                        }
-                        if (uiModel.laterTasks.isNotEmpty()) {
-                            item { Text("Later", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                            items(uiModel.laterTasks, key = { "later_${it.id}" }) { task ->
-                                TaskItem(task = task, onClick = { onTaskClick(task.id) })
-                            }
-                        }
-                        if (uiModel.overdueTasks.isNotEmpty()) {
-                            item { Text("Overdue", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) }
-                            items(uiModel.overdueTasks, key = { "overdue_${it.id}" }) { task ->
-                                TaskItem(task = task, isOverdue = true, onClick = { onTaskClick(task.id) })
-                            }
-                        }
-                    }
-                }
+        }
+    }
+}
+
+@Composable
+private fun TaskListLazySections(
+    todayTasks: List<Task>,
+    thisWeekTasks: List<Task>,
+    laterTasks: List<Task>,
+    overdueTasks: List<Task>,
+    onTaskClick: (Int) -> Unit
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(bottom = 88.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        if (todayTasks.isNotEmpty()) {
+            item(key = "header_today") {
+                Text("Today", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            items(todayTasks, key = { "today_${it.id}" }) { task ->
+                TaskItem(task = task, onClick = { onTaskClick(task.id) })
+            }
+        }
+        if (thisWeekTasks.isNotEmpty()) {
+            item(key = "header_this_week") {
+                Text("This Week", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            items(thisWeekTasks, key = { "thisweek_${it.id}" }) { task ->
+                TaskItem(task = task, onClick = { onTaskClick(task.id) })
+            }
+        }
+        if (laterTasks.isNotEmpty()) {
+            item(key = "header_later") {
+                Text("Later", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            items(laterTasks, key = { "later_${it.id}" }) { task ->
+                TaskItem(task = task, onClick = { onTaskClick(task.id) })
+            }
+        }
+        if (overdueTasks.isNotEmpty()) {
+            item(key = "header_overdue") {
+                Text(
+                    "Overdue",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            items(overdueTasks, key = { "overdue_${it.id}" }) { task ->
+                TaskItem(task = task, isOverdue = true, onClick = { onTaskClick(task.id) })
             }
         }
     }
 }
 
 @Composable
-private fun FilterChips(selectedFilter: TaskFilter, onFilterSelected: (TaskFilter) -> Unit) {
+private fun TaskListFilterChips(
+    selectedFilter: TaskFilter,
+    onFilterSelected: (TaskFilter) -> Unit
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         TaskFilter.entries.forEach { filter ->
             val isSelected = selectedFilter == filter
@@ -288,10 +388,13 @@ fun CreateEditTaskScreen(
             )
         }
     ) { innerPadding ->
+        val scrollState = rememberScrollState()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding()
+                .verticalScroll(scrollState)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -421,6 +524,7 @@ fun CreateEditTaskScreen(
                     Text("Delete Task")
                 }
             }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
