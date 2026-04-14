@@ -6,11 +6,31 @@ import com.example.taskmanager.domain.util.TaskDateUtils
 
 class GroupTasksUseCase {
     operator fun invoke(tasks: List<Task>): GroupedTasks {
-        val overdue = tasks.filter { TaskDateUtils.isOverdue(it.dueDate) }
-        val notOverdue = tasks.filter { !TaskDateUtils.isOverdue(it.dueDate) }
-        val today = notOverdue.filter { TaskDateUtils.isToday(it.dueDate) }
-        val thisWeek = notOverdue.filter { !TaskDateUtils.isToday(it.dueDate) && TaskDateUtils.isThisWeek(it.dueDate) }
-        val later = notOverdue.filter { TaskDateUtils.isLater(it.dueDate) }
+        val overdue = mutableListOf<Task>()
+        val today = mutableListOf<Task>()
+        val thisWeek = mutableListOf<Task>()
+        val later = mutableListOf<Task>()
+
+        tasks.forEach { task ->
+             when {
+                TaskDateUtils.isOverdue(task.dueDate) -> {
+                    overdue += task
+                    "overdue"
+                }
+                TaskDateUtils.isToday(task.dueDate) -> {
+                    today += task
+                    "today"
+                }
+                TaskDateUtils.isThisWeek(task.dueDate) -> {
+                    thisWeek += task
+                    "thisWeek"
+                }
+                else -> {
+                    later += task
+                    "later"
+                }
+            }
+        }
 
         return GroupedTasks(
             today = today,

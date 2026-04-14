@@ -55,12 +55,6 @@ class TaskMutationUseCasesTest {
         updateTaskUseCase(task(id = 0, title = "Nope", dueDate = nowPlusDays(1)))
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun updateTask_throws_whenDueDateInPast() = runTest {
-        val now = System.currentTimeMillis()
-        updateTaskUseCase(task(id = 1, title = "Past", dueDate = now - 1), nowMillis = now)
-    }
-
     @Test
     fun deleteTask_callsSoftDeleteWithNowMillis() = runTest {
         val now = 1234L

@@ -15,19 +15,26 @@ object TaskDateUtils {
         return LocalDate.now(zoneId).atStartOfDay(zoneId).toInstant().toEpochMilli()
     }
 
+    fun endOfTodayMillis(zoneId: ZoneId = ZoneId.systemDefault()): Long {
+        return startOfTodayMillis(zoneId) + MILLIS_IN_DAY
+    }
+
     fun isOverdue(
         dueDateMillis: Long,
         zoneId: ZoneId = ZoneId.systemDefault()
     ): Boolean {
-        return dueDateMillis < startOfTodayMillis(zoneId)
+        val startOfToday = startOfTodayMillis(zoneId)
+        return dueDateMillis < startOfToday
     }
 
     fun isToday(
         dueDateMillis: Long,
         zoneId: ZoneId = ZoneId.systemDefault()
     ): Boolean {
-        val today = LocalDate.now(zoneId)
-        return toLocalDate(dueDateMillis, zoneId) == today
+        val startOfToday = startOfTodayMillis(zoneId)
+        val endOfToday = endOfTodayMillis(zoneId)
+        val result = dueDateMillis in startOfToday until endOfToday
+        return result
     }
 
     fun isThisWeek(
@@ -58,4 +65,6 @@ object TaskDateUtils {
 
         return dueWeekYear > todayWeekYear || (dueWeekYear == todayWeekYear && dueWeek > todayWeek)
     }
+
+    private const val MILLIS_IN_DAY = 24L * 60L * 60L * 1000L
 }
