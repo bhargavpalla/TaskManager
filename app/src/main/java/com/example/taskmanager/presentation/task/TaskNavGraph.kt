@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -46,7 +47,7 @@ fun TaskNavGraph() {
                 onFilterSelected = taskViewModel::onFilterSelected,
                 onTaskClick = { id -> navController.navigate("edit/$id") },
                 onCreateClick = { navController.navigate("create") },
-                onTrashClick = { navController.navigate("trash") }
+                onTrashClick = { navController.navigateAsTopLevel("trash") }
             )
         }
         composable("trash") {
@@ -54,7 +55,7 @@ fun TaskNavGraph() {
                 state = trashUi,
                 onRestore = taskViewModel::restoreTask,
                 onDeleteForever = taskViewModel::deleteTaskPermanently,
-                onTasksClick = { navController.navigate("tasks") }
+                onTasksClick = { navController.navigateAsTopLevel("tasks") }
             )
         }
         composable("create") {
@@ -89,6 +90,14 @@ fun TaskNavGraph() {
         }
     }
 
+}
+
+private fun NavHostController.navigateAsTopLevel(route: String) {
+    navigate(route) {
+        popUpTo(graph.startDestinationId) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
 }
 
 @Composable
